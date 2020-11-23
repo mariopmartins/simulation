@@ -38,10 +38,12 @@ enum VehicleType {
     Bike
 }
 
+struct GreetTimer(Timer);
+
+
 struct Vehicle;
 struct Type(VehicleType);
 struct Status(VehicleStatus);
-
 
 fn setup(mut commands: Commands) {
     commands
@@ -53,16 +55,22 @@ fn setup(mut commands: Commands) {
         .spawn((Vehicle, Type(VehicleType::Bike), Status(VehicleStatus::Driving)));
 }
 
-fn greet_people(_vehicle: &Vehicle, _type: &Type, _status: &Status) {
-    println!("--> {} {}", _type.0, _status.0);
+fn greet_people(time: Res<Time>, mut timer: ResMut<GreetTimer>, query: Query<(&Vehicle, &Type, &Status)>) {
+    timer.0.tick(time.delta_seconds);
+    if timer.0.finished {
+        for (_vehicle, _type, _status) in query.iter() {
+            println!("--> {} {}", _type.0, _status.0);
+        }
+    }
 }
 
 pub struct HelloPlugin;
 
 impl Plugin for HelloPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system())
-            .add_system(greet_people.system());
+        app.add_resource(GreetTimer(Timer::from_seconds(2.0, true)))
+           .add_startup_system(setup.system())
+           .add_system(greet_people.system());
     }
 }
 
