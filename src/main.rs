@@ -1,9 +1,9 @@
-use bevy::prelude::*;
+use bevy::{prelude::*};
 use std::fmt;
 
 fn main() {
     App::build()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(MinimalPlugins)
         .add_plugin(HelloPlugin)
         .run();
 }
@@ -55,7 +55,7 @@ fn setup(mut commands: Commands) {
         .spawn((Vehicle, Type(VehicleType::Bike), Status(VehicleStatus::Driving)));
 }
 
-fn greet_people(time: Res<Time>, mut timer: ResMut<GreetTimer>, query: Query<(&Vehicle, &Type, &Status)>) {
+fn print_status(time: Res<Time>, mut timer: ResMut<GreetTimer>, query: Query<(&Vehicle, &Type, &Status)>) {
     timer.0.tick(time.delta_seconds);
     if timer.0.finished {
         for (_vehicle, _type, _status) in query.iter() {
@@ -70,7 +70,7 @@ impl Plugin for HelloPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_resource(GreetTimer(Timer::from_seconds(2.0, true)))
            .add_startup_system(setup.system())
-           .add_system(greet_people.system());
+           .add_system(print_status.system());
     }
 }
 
