@@ -1,11 +1,9 @@
 use std::env;
 // use std::fmt;
-use bevy::{
-    input::keyboard::KeyboardInput,
-    input::mouse::{MouseButtonInput, MouseMotion, MouseWheel},
-    prelude::*,
-    window::CursorMoved,
-};
+use bevy::{pbr::render_graph::FORWARD_PIPELINE_HANDLE, input::keyboard::KeyboardInput, prelude::*, render::render_graph::base::MainPass, render::{
+            mesh::Mesh,
+            pipeline::{DynamicBinding, PipelineSpecialization, RenderPipeline, RenderPipelines},
+        }};
 
 /// set up a simple 3D scene
 fn setup(
@@ -21,8 +19,6 @@ fn setup(
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             ..Default::default()
         })
-        
-        
         // cube
         .spawn(PbrComponents {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
@@ -36,11 +32,31 @@ fn setup(
             ..Default::default()
         })
         // camera rig
-        .spawn(PbrComponents {
-            transform: Transform::from_translation(Vec3::new(-3.0, 5.0, 8.0)),
-            ..Default::default()
-        })
-        .with(CameraRig)
+        .spawn((
+            RenderPipelines::from_pipelines(vec![RenderPipeline::specialized(
+                FORWARD_PIPELINE_HANDLE,
+                PipelineSpecialization {
+                    dynamic_bindings: vec![
+                        // Transform
+                        DynamicBinding {
+                            bind_group: 2,
+                            binding: 0,
+                        },
+                        // StandardMaterial_albedo
+                        DynamicBinding {
+                            bind_group: 3,
+                            binding: 0,
+                        },
+                    ],
+                    ..Default::default()
+                },
+            )]),
+            MainPass::default(),
+            Draw::default(),
+            Transform::from_translation(Vec3::new(-3.0, 5.0, 8.0)),
+            GlobalTransform::default(),
+            CameraRig,
+        ))
         .with_children(|parent| {
             // camera
             parent.spawn(Camera3dComponents {
@@ -49,41 +65,6 @@ fn setup(
                 ..Default::default()
             });
         });
-}
-
-#[derive(Default)]
-struct MouseState {
-    mouse_button_event_reader: EventReader<MouseButtonInput>,
-    mouse_motion_event_reader: EventReader<MouseMotion>,
-    cursor_moved_event_reader: EventReader<CursorMoved>,
-    mouse_wheel_event_reader: EventReader<MouseWheel>,
-}
-
-/// This system prints out all mouse events as they come in
-fn print_mouse_events_system(
-    mut state: Local<MouseState>,
-    mouse_button_input_events: Res<Events<MouseButtonInput>>,
-    mouse_motion_events: Res<Events<MouseMotion>>,
-    cursor_moved_events: Res<Events<CursorMoved>>,
-    mouse_wheel_events: Res<Events<MouseWheel>>,
-) {
-    for event in state
-        .mouse_button_event_reader
-        .iter(&mouse_button_input_events) {
-        println!("{:?}", event);
-    }
-
-    for event in state.mouse_motion_event_reader.iter(&mouse_motion_events) {
-        println!("{:?}", event);
-    }
-
-    for event in state.cursor_moved_event_reader.iter(&cursor_moved_events) {
-        println!("{:?}", event);
-    }
-
-    for event in state.mouse_wheel_event_reader.iter(&mouse_wheel_events) {
-        println!("{:?}", event);
-    }
 }
 
 #[derive(Default)]
@@ -101,13 +82,12 @@ fn print_keyboard_event_system(
     }
 }
 
-
 struct CameraRig;
 
 fn camera_rig_controller_system(time: Res<Time>, mut query: Query<(&CameraRig, &mut Transform)>) {
-    
     for (_rotator, mut transform) in query.iter_mut() {
-        transform.rotation *= Quat::from_rotation_x(3.0 * time.delta_seconds);
+        println!("test");
+        transform.rotation *= Quat::from_rotation_y(3.0 * time.delta_seconds);
     }
 }
 
@@ -120,7 +100,6 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_system(camera_rig_controller_system.system())
-        .add_system(print_mouse_events_system.system())
         .add_system(print_keyboard_event_system.system())
         .add_startup_system(setup.system())
         .run();
