@@ -1,9 +1,9 @@
 use std::env;
 // use std::fmt;
-use bevy::{pbr::render_graph::FORWARD_PIPELINE_HANDLE, input::keyboard::KeyboardInput, prelude::*, render::render_graph::base::MainPass, render::{
-            mesh::Mesh,
-            pipeline::{DynamicBinding, PipelineSpecialization, RenderPipeline, RenderPipelines},
-        }};
+use bevy::{
+    prelude::*, render::{
+        mesh::Mesh,
+    }};
 
 /// set up a simple 3D scene
 fn setup(
@@ -33,29 +33,9 @@ fn setup(
         })
         // camera rig
         .spawn((
-            RenderPipelines::from_pipelines(vec![RenderPipeline::specialized(
-                FORWARD_PIPELINE_HANDLE,
-                PipelineSpecialization {
-                    dynamic_bindings: vec![
-                        // Transform
-                        DynamicBinding {
-                            bind_group: 2,
-                            binding: 0,
-                        },
-                        // StandardMaterial_albedo
-                        DynamicBinding {
-                            bind_group: 3,
-                            binding: 0,
-                        },
-                    ],
-                    ..Default::default()
-                },
-            )]),
-            MainPass::default(),
-            Draw::default(),
-            Transform::from_translation(Vec3::new(-3.0, 5.0, 8.0)),
-            GlobalTransform::default(),
-            CameraRig,
+                Transform::from_translation(Vec3::new(-3.0, 5.0, 8.0)),
+                GlobalTransform::default(),
+                CameraRig,
         ))
         .with_children(|parent| {
             // camera
@@ -67,27 +47,66 @@ fn setup(
         });
 }
 
-#[derive(Default)]
-struct KeyboardState {
-    event_reader: EventReader<KeyboardInput>,
-}
-
-/// This system prints out all keyboard events as they come in
-fn print_keyboard_event_system(
-    mut state: Local<KeyboardState>,
-    keyboard_input_events: Res<Events<KeyboardInput>>,
-) {
-    for event in state.event_reader.iter(&keyboard_input_events) {
-        println!("{:?}", event);
-    }
-}
-
 struct CameraRig;
 
-fn camera_rig_controller_system(time: Res<Time>, mut query: Query<(&CameraRig, &mut Transform)>) {
-    for (_rotator, mut transform) in query.iter_mut() {
-        println!("test");
-        transform.rotation *= Quat::from_rotation_y(3.0 * time.delta_seconds);
+fn camera_rig_controller_system(time: Res<Time>, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&CameraRig, &mut Transform)>) {
+    let movement_speed = 5.0;
+    let movement_time = 5.0;
+    let rotation_amount = 1.0;
+    let zoom_amount = Vec3::new(0.0, -10.0, 10.0);
+    //let minimal_zoom = Vec3::new(0.0, 3.0, -3.0);
+    //let maximum_zoom = Vec3::new(0.0, 50.0, -50.0);
+
+    let mut new_move = false;
+    let mut new_translation = Vec3::one();
+    let mut new_rotation_amount = Quat::identity();
+    let mut new_zoom = Vec3::default();
+
+    for (_camera_rig, mut transform) in query.iter_mut() {
+        // movement
+        if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W) {
+            new_translation += transform.forward() * movement_speed;
+            new_move = true;
+        }
+        if keyboard_input.pressed(KeyCode::Down) || keyboard_input.pressed(KeyCode::S) {
+            new_translation += transform.forward() * -movement_speed;
+            new_move = true;
+        }
+        if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
+            new_translation += transform.forward() * movement_speed;
+            new_move = true;
+        }
+        if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
+            new_translation += transform.forward() * -movement_speed;
+            new_move = true;
+        }
+
+        // rotation
+        if keyboard_input.pressed(KeyCode::Q) {
+            new_rotation_amount *= Quat::from_rotation_y(rotation_amount);
+            new_move = true;
+        }
+        if keyboard_input.pressed(KeyCode::E) {
+            new_rotation_amount *= Quat::from_rotation_y(-rotation_amount);
+            new_move = true;
+        }
+
+        // zoom
+        if keyboard_input.pressed(KeyCode::R) {
+            new_zoom += zoom_amount;
+            new_move = true;
+        }
+        if keyboard_input.pressed(KeyCode::F) {
+            new_zoom -= zoom_amount;
+            new_move = true;
+        }
+
+        // handle movement
+        if new_move { 
+            transform.translation = Vec3::lerp(transform.translation, new_translation, movement_time * time.delta_seconds);
+            transform.rotation = Quat::lerp(transform.rotation, new_rotation_amount, time.delta_seconds);
+            new_move = false;
+        }
     }
 }
 
@@ -100,79 +119,6 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_system(camera_rig_controller_system.system())
-        .add_system(print_keyboard_event_system.system())
         .add_startup_system(setup.system())
         .run();
 }
-
-// fn main() {
-//     App::build()
-//         .add_plugins(MinimalPlugins)
-//         .add_plugin(HelloPlugin)
-//         .run();
-// }
-
-// impl fmt::Display for VehicleStatus {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//        match *self {
-//            VehicleStatus::Parked => write!(f, "Parked"),
-//            VehicleStatus::Driving => write!(f, "Driving"),
-//        }
-//     }
-// }
-
-// enum VehicleStatus {
-//     Parked,
-//     Driving
-// }
-
-// impl fmt::Display for VehicleType {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//        match *self {
-//            VehicleType::Car => write!(f, "Car"),
-//            VehicleType::Truck => write!(f, "Truck"),
-//            VehicleType::Bike => write!(f, "Bike"),
-//        }
-//     }
-// }
-
-// enum VehicleType {
-//     Car,
-//     Truck,
-//     Bike
-// }
-
-// struct GreetTimer(Timer);
-
-// struct Vehicle;
-// struct Type(VehicleType);
-// struct Status(VehicleStatus);
-
-// fn setup(mut commands: Commands) {
-//     commands
-//         .spawn((Vehicle, Type(VehicleType::Car), Status(VehicleStatus::Parked)))
-//         .spawn((Vehicle, Type(VehicleType::Car), Status(VehicleStatus::Driving)))
-//         .spawn((Vehicle, Type(VehicleType::Truck), Status(VehicleStatus::Parked)))
-//         .spawn((Vehicle, Type(VehicleType::Truck), Status(VehicleStatus::Driving)))
-//         .spawn((Vehicle, Type(VehicleType::Bike), Status(VehicleStatus::Parked)))
-//         .spawn((Vehicle, Type(VehicleType::Bike), Status(VehicleStatus::Driving)));
-// }
-
-// fn print_status(time: Res<Time>, mut timer: ResMut<GreetTimer>, query: Query<(&Vehicle, &Type, &Status)>) {
-//     timer.0.tick(time.delta_seconds);
-//     if timer.0.finished {
-//         for (_vehicle, _type, _status) in query.iter() {
-//             println!("--> {} {}", _type.0, _status.0);
-//         }
-//     }
-// }
-
-// pub struct HelloPlugin;
-
-// impl Plugin for HelloPlugin {
-//     fn build(&self, app: &mut AppBuilder) {
-//         app.add_resource(GreetTimer(Timer::from_seconds(2.0, true)))
-//            .add_startup_system(setup.system())
-//            .add_system(print_status.system());
-//     }
-// }
