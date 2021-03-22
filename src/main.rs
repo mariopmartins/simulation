@@ -7,39 +7,40 @@ use bevy::{
 
 /// set up a simple 3D scene
 fn setup(
-    mut commands: Commands,
+    commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // add entities to the world
     commands
         // plane
-        .spawn(PbrComponents {
+        .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             ..Default::default()
         })
         // cube
-        .spawn(PbrComponents {
+        .spawn(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
             transform: Transform::from_translation(Vec3::new(0.0, 1.0, 0.0)),
             ..Default::default()
         })
         // light
-        .spawn(LightComponents {
+        .spawn(LightBundle {
             transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
             ..Default::default()
         })
         // camera rig
         .spawn((
-                Transform::from_translation(Vec3::new(-3.0, 5.0, 8.0)),
+                Transform::from_translation(Vec3::new(-3.0, 5.0, 8.0))
+                    .looking_at(Vec3::default(), Vec3::unit_y()),
                 GlobalTransform::default(),
                 CameraRig,
         ))
         .with_children(|parent| {
             // camera
-            parent.spawn(Camera3dComponents {
+            parent.spawn(Camera3dBundle {
                 transform: Transform::from_translation(Vec3::new(-3.0, 5.0, 8.0))
                     .looking_at(Vec3::default(), Vec3::unit_y()),
                 ..Default::default()
@@ -73,11 +74,11 @@ fn camera_rig_controller_system(time: Res<Time>, keyboard_input: Res<Input<KeyCo
             new_move = true;
         }
         if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
-            new_translation += transform.forward() * movement_speed;
+            new_translation += transform.rotation * Vec3::unit_x() * movement_speed;
             new_move = true;
         }
         if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
-            new_translation += transform.forward() * -movement_speed;
+            new_translation += transform.rotation * Vec3::unit_x() * -movement_speed;
             new_move = true;
         }
 
@@ -103,8 +104,8 @@ fn camera_rig_controller_system(time: Res<Time>, keyboard_input: Res<Input<KeyCo
 
         // handle movement
         if new_move { 
-            transform.translation = Vec3::lerp(transform.translation, new_translation, movement_time * time.delta_seconds);
-            transform.rotation = Quat::lerp(transform.rotation, new_rotation_amount, time.delta_seconds);
+            transform.translation = Vec3::lerp(transform.translation, new_translation, movement_time * time.delta_seconds());
+            transform.rotation = Quat::lerp(transform.rotation, new_rotation_amount, time.delta_seconds());
             new_move = false;
         }
     }
